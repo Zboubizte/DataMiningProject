@@ -4,7 +4,7 @@ import numpy as np
 
 # Chargement des datasets
 df_demissionnaire = pd.read_csv("donnees/data_mining_DB_clients_tbl.csv",
-                    usecols = ["CDSEXE", "NBENF", "CDSITFAM", "CDTMT", "CDCATCL", "agedem", "adh"])
+                    usecols = ["CDSEXE", "NBENF", "CDSITFAM", "DTADH", "CDTMT", "CDCATCL", "agedem", "adh"])
 df_random = pd.read_csv("donnees/data_mining_DB_clients_tbl_bis.csv",
                     usecols = ["CDSEXE", "NBENF", "CDSITFAM", "DTADH", "CDTMT", "CDCATCL", "CDMOTDEM", "DTDEM", "DTNAIS"])
 
@@ -14,8 +14,7 @@ df_random["demissionnaire"] = np.where(df_random["CDMOTDEM"].notnull(), True, Fa
 #df_random = df_random.drop(columns = "CDMOTDEM")
 
 # On renomme les colonnes
-df_demissionnaire = df_demissionnaire.rename(columns = {"agedem": "age"})
-df_demissionnaire = df_demissionnaire.rename(columns = {"adh": "duree"})
+df_demissionnaire = df_demissionnaire.rename(columns = {"agedem": "age", "adh": "duree"})
 
 # On supprime les lignes contenant des erreurs de saisies.
 # C'est à dire les démissionnaires n'ayant pas de date de démission ou les dates de naissances vides
@@ -33,16 +32,22 @@ df_random["duree"] = np.where(df_random["demissionnaire"] == True,
                               2007 - df_random["DTADH"].str.slice(stop = 4).astype(int))
 
 # On ordonne les colonnes de la même façon
-df_demissionnaire = df_demissionnaire[["CDSEXE", "NBENF", "CDSITFAM", "CDTMT", "CDCATCL", "age", "duree", "demissionnaire"]]
-df_random = df_random[["CDSEXE", "NBENF", "CDSITFAM", "CDTMT", "CDCATCL", "age", "duree", "demissionnaire"]]
+df_demissionnaire = df_demissionnaire[["CDSEXE", "NBENF", "CDSITFAM", "CDTMT", "CDCATCL", "DTADH", "age", "duree", "demissionnaire"]]
+df_random = df_random[["CDSEXE", "NBENF", "CDSITFAM", "CDTMT", "CDCATCL", "DTADH", "age", "duree", "demissionnaire"]]
 
 # On concatène les deux datasets
 df = pd.concat([df_demissionnaire, df_random], ignore_index = True)
 df["age"] = df["age"].astype(int)
 df["duree"] = df["duree"].astype(int)
+df = df.rename(columns = {"CDSEXE": "sexe",
+                          "NBENF": "avec_des_enfants",
+                          "CDSITFAM": "situation_fam",
+                          "CDTMT": "statut",
+                          "CDCATCL": "categorie",
+                          "DTADH": "annee_adh"})
 
 # La colonne CDSITFAM est groupée par des lettres décrivant la situation familiale
 # Remplacement de ces lettres par les numéro de lettre correspondant
-df["CDSITFAM"] = df["CDSITFAM"].apply(lambda x: ord(x.lower()) - 96).astype(int)
+df["situation_fam"] = df["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
 
 print df.head(1)
