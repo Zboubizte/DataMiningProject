@@ -23,12 +23,14 @@ df_random = df_random.drop(df_random[(df_random["CDMOTDEM"] == "DC") & (df_rando
 df_random = df_random.drop(df_random[df_random["DTNAIS"] == "0000-00-00"].index)
 
 # On calcule l'age de démission, ou l'age si il n'y a pas de démission dans le df_random
-df_random.loc[df_random["demissionnaire"] == True, "age"] = df_random["DTDEM"].str.slice(stop = 4).astype(int) - df_random["DTNAIS"].str.slice(stop = 4).astype(int)
-df_random.loc[df_random["demissionnaire"] == False, "age"] = 2007 - df_random["DTNAIS"].str.slice(stop = 4).astype(int)
+df_random["age"] = np.where(df_random["demissionnaire"] == True,
+                            df_random["DTDEM"].str.slice(stop = 4).astype(int) - df_random["DTNAIS"].str.slice(stop = 4).astype(int),
+                            2007 - df_random["DTNAIS"].str.slice(stop = 4).astype(int))
 
 # On calcule la durée d'adhésion (jusqu'à démission si démission)
-df_random.loc[df_random["demissionnaire"] == True, "duree"] = df_random["DTDEM"].str.slice(stop = 4).astype(int) - df_random["DTADH"].str.slice(stop = 4).astype(int)
-df_random.loc[df_random["demissionnaire"] == False, "duree"] = 2007 - df_random["DTADH"].str.slice(stop = 4).astype(int)
+df_random["duree"] = np.where(df_random["demissionnaire"] == True,
+                              df_random["DTDEM"].str.slice(stop = 4).astype(int) - df_random["DTADH"].str.slice(stop = 4).astype(int),
+                              2007 - df_random["DTADH"].str.slice(stop = 4).astype(int))
 
 # On ordonne les colonnes de la même façon
 df_demissionnaire = df_demissionnaire[["CDSEXE", "NBENF", "CDSITFAM", "CDTMT", "CDCATCL", "age", "duree", "demissionnaire"]]
