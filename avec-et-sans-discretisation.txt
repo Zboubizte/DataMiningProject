@@ -1,0 +1,42 @@
+Accuracy of Dummy classifier on cross-validation: 0.69 (+/- 0.00)
+        [[    0 14031]
+         [    0 30876]]
+
+Accuracy of Naive Bayes classifier on cross-validation: 0.89 (+/- 0.12)
+        [[12513  1518]
+         [ 3403 27473]]
+
+Accuracy of Decision tree classifier on cross-validation: 0.78 (+/- 0.42)
+        [[ 8942  5089]
+         [ 4613 26263]]
+
+Accuracy of Logistic regression classifier on cross-validation: 0.92 (+/- 0.08)
+        [[11622  2409]
+         [ 1053 29823]]
+
+Accuracy of SVC classifier on cross-validation: 0.89 (+/- 0.16)
+        [[11056  2975]
+         [ 2120 28756]]
+
+---------------------------------------------------------------------------------
+
+
+Accuracy of Dummy classifier on cross-validation: 0.69 (+/- 0.00)
+        [[    0 14031]
+        [    0 30876]]
+
+Accuracy of Naive Bayes classifier on cross-validation: 0.88 (+/- 0.12)
+        [[11426  2605]
+        [ 2586 28290]]
+
+Accuracy of Decision tree classifier on cross-validation: 0.77 (+/- 0.42)
+        [[ 9104  4927]
+        [ 4693 26183]]
+
+Accuracy of Logistic regression classifier on cross-validation: 0.91 (+/- 0.10)
+        [[10798  3233]
+        [  675 30201]]
+
+Accuracy of SVC classifier on cross-validation: 0.87 (+/- 0.08)
+        [[ 9061  4970]
+        [  915 29961]]
