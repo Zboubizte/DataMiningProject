@@ -9,8 +9,12 @@ from sklearn.svm import SVC
 from sklearn.model_selection import cross_val_predict, cross_val_score
 from sklearn.metrics import confusion_matrix
 from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
+from scipy.spatial.distance import cdist
 import matplotlib.pyplot as plt
 
+
+pd.set_option('display.max_columns', None)
 def main():
     # Chargement des datasets
     df_demissionnaire = pd.read_csv("donnees/data_mining_DB_clients_tbl.csv",
@@ -60,12 +64,12 @@ def main():
 
     # La colonne CDSITFAM est groupée par des lettres décrivant la situation familiale
     # Remplacement de ces lettres par les numéro de lettre correspondant
-    # df["situation_fam"] = df["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
+    df["situation_fam"] = df["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
 
     # On ne garde que l'année de l'adhésion
     df["annee_adh"] = df["annee_adh"].str.slice(stop = 4).astype(int)
 
-    df = discretization(df, ["categorie", "statut", "situation_fam", "sexe"])
+    # df = discretization(df, ["categorie", "statut", "situation_fam", "sexe"])
 
     X, Y = get_XY(df, "d")
 
@@ -75,6 +79,44 @@ def main():
     save_acp_graph(acp, coord, X, 0, 1)
     save_acp_graph(acp, coord, X, 2, 3)
     print(acp.explained_variance_ratio_)
+
+    # make_elbow(X);
+    k = 4
+    pca_components = pd.DataFrame(coord)
+    make_Kmeans(k, pca_components);
+
+def make_Kmeans(k, X):
+    
+    model = KMeans(n_clusters=k)
+    fig = plt.figure(figsize=(8, 6))
+    # ax = Axes3D(fig, rect=[0, 0, .95, 1], elev=48, azim=134)
+    f, ax = plt.subplots(1, 1, sharey=True,figsize=(10,6))
+    model.fit(X)
+    labels = model.labels_
+    X['labels'] = labels
+    # print(X.groupby(['labels','nb_enfants']).size())
+    # print(X.groupby(['labels','categorie']).size())
+    
+
+
+# Function called to plot the elbow graph for choosing the kmeans number of cluster.
+def make_elbow(X):
+ # Plot elbow graphs for KMeans using R square and purity scores
+    lst_k=range(2,10)
+    lst_rsq = []
+    for k in lst_k:
+        kmeanModel = KMeans(n_clusters=k).fit(X)
+        kmeanModel.fit(X)
+        lst_rsq.append(sum(np.min(cdist(X, kmeanModel.cluster_centers_, 'euclidean'), axis=1)) / X.shape[0])
+
+    fig = plt.figure()
+    plt.plot(lst_k, lst_rsq, 'bx-')
+    plt.xlabel('k')
+    plt.ylabel('RSQ score')
+    plt.title('The Elbow Method showing the optimal k')
+    plt.savefig('fig/k-means_elbow_method')
+    plt.close()
+
 
 # Discrétisation des données catégorielles
 def discretization(df, col_list):
