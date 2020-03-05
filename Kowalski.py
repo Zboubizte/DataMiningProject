@@ -10,6 +10,7 @@ from sklearn.model_selection import cross_val_predict, cross_val_score
 from sklearn.metrics import confusion_matrix
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 def main():
     # Chargement des datasets
@@ -58,30 +59,44 @@ def main():
                             "CDCATCL": "categorie",
                             "DTADH": "annee_adh"})
 
-    # La colonne CDSITFAM est groupée par des lettres décrivant la situation familiale
-    # Remplacement de ces lettres par les numéro de lettre correspondant
-    # df["situation_fam"] = df["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
-
     # On ne garde que l'année de l'adhésion
     df["annee_adh"] = df["annee_adh"].str.slice(stop = 4).astype(int)
 
+    # Ligne 1: on ne discretise pas; Ligne 2: on discretise
+    # df["situation_fam"] = df["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
     df = discretization(df, ["categorie", "statut", "situation_fam", "sexe"])
 
     X, Y = get_XY(df, "d")
 
-    # ACP sur les données X_scaled
+    scaler = StandardScaler()
+    X_cols = X.columns
+    x_scaled = scaler.fit_transform(X.values)
+    X = pd.DataFrame(data = x_scaled, columns = X_cols)
+
+    print X
+
+    # ACP sur les données X
     acp = PCA(svd_solver = "full")
     coord = acp.fit_transform(X)
+    print(acp.explained_variance_ratio_)
     save_acp_graph(acp, coord, X, 0, 1)
     save_acp_graph(acp, coord, X, 2, 3)
-    print(acp.explained_variance_ratio_)
 
-# Discrétisation des données catégorielles
+    corvar, n, p = get_corvar(X, acp)
+
+    correlation_circle(X, p, 0, 1, corvar)
+    correlation_circle(X, p, 2, 3, corvar)
+
+# Discrétisation des données catégorielles passées en paramètre
 def discretization(df, col_list):
     for col in col_list:
         df = pd.concat([pd.get_dummies(df[col], prefix = col), df.drop(columns = col)], axis = 1)
     return df
 
+# Renvoie les données au format X et Y en fonction d'un choix :
+# d : X = démissionnaires
+# n : X = non démissionnaires
+# f : X = corpus complet
 def get_XY(df, choix):
     if choix == "d":
         return df[df["demissionnaire"] == True].drop(columns = "demissionnaire"), df[df["demissionnaire"] == True]["demissionnaire"]
@@ -92,6 +107,7 @@ def get_XY(df, choix):
     else:
         exit("erreur")
 
+# Teste de prédire les données avec 5 classifiers différents
 def test_predict(X, Y):
     # Initialisation des variables de classification
     dummycl = DummyClassifier(strategy = "most_frequent")
@@ -110,7 +126,8 @@ def test_predict(X, Y):
         print("Accuracy of " + name_clf + " classifier on cross-validation: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
         print(confusion_matrix(Y, cross_val_predict(clf, X, Y, cv = 5)))
 
-def save_acp_graph(acp, coord, data, cp1, cp2):
+# Sauvegarde du graphe de l'acp par rapport à deux composantes cp1 et cp2
+def save_acp_graph(acp, coord, data, cp1, cp2, fixed = False):
     # Calcul des valeurs propres et de la matrice de corrélation des variables
     n = np.size(data, 0)
     p = np.size(data, 1)
@@ -123,10 +140,10 @@ def save_acp_graph(acp, coord, data, cp1, cp2):
 
     # Affichage des instances étiquetées par le code du pays suivant les 2 facteurs principaux de l"ACP
     fig, axes = plt.subplots(figsize = (12, 12))
-    xmin = min(coord[:, cp1])
-    xmax = max(coord[:, cp1])
-    ymin = min(coord[:, cp2])
-    ymax = max(coord[:, cp2])
+    xmin = min(coord[:, cp1]) if not fixed else (-45 if cp1 == 0 else -5)
+    xmax = max(coord[:, cp1]) if not fixed else (45 if cp1 == 0 else 5)
+    ymin = min(coord[:, cp2]) if not fixed else (-45 if cp1 == 0 else -5)
+    ymax = max(coord[:, cp2]) if not fixed else (45 if cp1 == 0 else 5)
     axes.set_xlim(xmin, xmax)
     axes.set_ylim(ymin, ymax)
 
@@ -140,6 +157,38 @@ def save_acp_graph(acp, coord, data, cp1, cp2):
     axes.set_ylabel("CP " + str(cp2 + 1))
     plt.savefig("fig/acp_instances_plan_" + str(cp1) + "-" + str(cp2))
     plt.close(fig)
+
+# Sauvegarde le cercle des corrélations
+def correlation_circle(df, nb_var, x_axis, y_axis, corvar):
+    fig, axes = plt.subplots(figsize = (8, 8))
+    axes.set_xlim(-1, 1)
+    axes.set_ylim(-1, 1)
+    axes.set_xlabel("CP" + str(x_axis + 1))
+    axes.set_ylabel("CP" + str(y_axis + 1))
+
+    for j in range(nb_var):
+        plt.annotate(df.columns[j], (corvar[j, x_axis], corvar[j, y_axis]))
+
+    plt.plot([-1, 1], [0, 0], color = "silver", linestyle = "-", linewidth = 1)
+    plt.plot([0, 0], [-1, 1], color = "silver", linestyle = "-", linewidth = 1)
+
+    cercle = plt.Circle((0, 0), 1, color = "blue", fill = False)
+    axes.add_artist(cercle)
+    plt.savefig("fig/acp_correlation_circle_axes_" + str(x_axis) + "_" + str(y_axis))
+    plt.close(fig)
+
+# Calcule la corvar de l'ACP
+def get_corvar(X, acp):
+    n = np.size(X, 0)
+    p = np.size(X, 1)
+    eigval = float(n - 1) / n * acp.explained_variance_
+    sqrt_eigval = np.sqrt(eigval)
+    corvar = np.zeros((p, p))
+
+    for k in range(p):
+        corvar[:, k] = acp.components_[k, :] * sqrt_eigval[k]
+    
+    return corvar, n, p
 
 if __name__ == "__main__":
     main()
