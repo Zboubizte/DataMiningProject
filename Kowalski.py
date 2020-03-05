@@ -62,30 +62,41 @@ def main():
     # On ne garde que l'année de l'adhésion
     df["annee_adh"] = df["annee_adh"].str.slice(stop = 4).astype(int)
 
+    # Filtrage des colonnes
+    # df = df["sexe", "nb_enfants", "situation_fam", "statut", "categorie", "annee_adh", "age", "duree", "demissionnaire"]
+    # df = df[["sexe", "nb_enfants", "situation_fam", "age", "duree", "demissionnaire"]]
+
     # Ligne 1: on ne discretise pas; Ligne 2: on discretise
-    # df["situation_fam"] = df["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
-    df = discretization(df, ["categorie", "statut", "situation_fam", "sexe"])
+    df["situation_fam"] = df["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
+    # df = discretization(df, ["categorie", "statut", "situation_fam", "sexe"])
+    
+    # On prend autant de démissionnaires que de non démissionnaires
+    mini = min([df[df["demissionnaire"] == True].count().iloc[0], df[df["demissionnaire"] == False].count().iloc[0]])
+    df = df.groupby(["demissionnaire"]).apply(lambda grp: grp.sample(n = mini)).reset_index(level = [0, 1], drop = True)
 
-    X, Y = get_XY(df, "d")
+    # Création des données X et Y
+    X, Y = get_XY(df, "f")
 
+    # Scale des données
     scaler = StandardScaler()
     X_cols = X.columns
     x_scaled = scaler.fit_transform(X.values)
     X = pd.DataFrame(data = x_scaled, columns = X_cols)
-
-    print X
+    Y = Y.reset_index()["demissionnaire"]
 
     # ACP sur les données X
     acp = PCA(svd_solver = "full")
     coord = acp.fit_transform(X)
+    corvar, eigval, n, p = get_corvar(X, acp)
+
+    save_eigval_graph(eigval, p)
+
     print(acp.explained_variance_ratio_)
-    save_acp_graph(acp, coord, X, 0, 1)
-    save_acp_graph(acp, coord, X, 2, 3)
-
-    corvar, n, p = get_corvar(X, acp)
-
+    
     correlation_circle(X, p, 0, 1, corvar)
     correlation_circle(X, p, 2, 3, corvar)
+    save_acp_graph(acp, coord, X, Y, 0, 1)
+    save_acp_graph(acp, coord, X, Y, 2, 3)
 
 # Discrétisation des données catégorielles passées en paramètre
 def discretization(df, col_list):
@@ -99,11 +110,11 @@ def discretization(df, col_list):
 # f : X = corpus complet
 def get_XY(df, choix):
     if choix == "d":
-        return df[df["demissionnaire"] == True].drop(columns = "demissionnaire"), df[df["demissionnaire"] == True]["demissionnaire"]
+        return df[df["demissionnaire"] == True].drop(columns = "demissionnaire"), df[df["demissionnaire"] == True]["demissionnaire"].astype(int)
     elif choix == "n":
-        return df[df["demissionnaire"] == False].drop(columns = "demissionnaire"), df[df["demissionnaire"] == False]["demissionnaire"]
+        return df[df["demissionnaire"] == False].drop(columns = "demissionnaire"), df[df["demissionnaire"] == False]["demissionnaire"].astype(int)
     elif choix == "f":
-        return df.drop(columns = "demissionnaire"), df["demissionnaire"]
+        return df.drop(columns = "demissionnaire"), df["demissionnaire"].astype(int)
     else:
         exit("erreur")
 
@@ -127,7 +138,7 @@ def test_predict(X, Y):
         print(confusion_matrix(Y, cross_val_predict(clf, X, Y, cv = 5)))
 
 # Sauvegarde du graphe de l'acp par rapport à deux composantes cp1 et cp2
-def save_acp_graph(acp, coord, data, cp1, cp2, fixed = False):
+def save_acp_graph(acp, coord, data, Y, cp1, cp2, fixed = False):
     # Calcul des valeurs propres et de la matrice de corrélation des variables
     n = np.size(data, 0)
     p = np.size(data, 1)
@@ -148,7 +159,7 @@ def save_acp_graph(acp, coord, data, cp1, cp2, fixed = False):
     axes.set_ylim(ymin, ymax)
 
     for i in range(n):
-        plt.annotate("+", (coord[i, cp1], coord[i, cp2]))
+        plt.annotate(".", (coord[i, cp1], coord[i, cp2]), color = ("blue" if Y.loc[i] == 0 else "red"))
 
     plt.plot([xmin, xmax], [0, 0], color = "silver", linestyle = "-", linewidth = 1)
     plt.plot([0, 0], [ymin, ymax], color = "silver", linestyle = "-", linewidth = 1)
@@ -188,7 +199,17 @@ def get_corvar(X, acp):
     for k in range(p):
         corvar[:, k] = acp.components_[k, :] * sqrt_eigval[k]
     
-    return corvar, n, p
+    return corvar, eigval, n, p
+
+# Sauvegarde du graphe des eigval
+def save_eigval_graph(eigval, p):
+    fig = plt.figure()
+    plt.plot(np.arange(1, p + 1), eigval)
+    plt.title("Scree plot")
+    plt.ylabel("Eigen values")
+    plt.xlabel("Factor number")
+    plt.savefig("fig/acp_eigen_values")
+    plt.close(fig)
 
 if __name__ == "__main__":
     main()
