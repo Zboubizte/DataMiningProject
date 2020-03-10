@@ -87,7 +87,6 @@ def main():
     X, Y = get_XY(df, "f")
 
     # Scale des données
-    # scaler = MinMaxScaler()
     scaler = StandardScaler()
     X_cols = X.columns
     x_scaled = scaler.fit_transform(X.values)
@@ -112,13 +111,14 @@ def main():
     save_acp_graph(acp, coord, X, Y, 0, 1)
     save_acp_graph(acp, coord, X, Y, 2, 3)
 
+    # test_predict(X, Y)
+
     # make_elbow(X);
     k = 4
     pca_components = pd.DataFrame(coord)
     make_Kmeans(k, pca_components);
 
 def make_Kmeans(k, X):
-    
     model = KMeans(n_clusters=k)
     fig = plt.figure(figsize=(8, 6))
     # ax = Axes3D(fig, rect=[0, 0, .95, 1], elev=48, azim=134)
