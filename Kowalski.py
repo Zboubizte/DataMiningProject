@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 import numpy as np
+import seaborn as sn
+from sklearn import tree
 from sklearn.dummy import DummyClassifier
 from sklearn.naive_bayes import GaussianNB
-from sklearn import tree
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.model_selection import cross_val_predict, cross_val_score
 from sklearn.metrics import confusion_matrix
 from sklearn.decomposition import PCA
-import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
+import matplotlib.pyplot as plt
 
 def main():
     # Chargement des datasets
@@ -63,8 +64,8 @@ def main():
     df["annee_adh"] = df["annee_adh"].str.slice(stop = 4).astype(int)
 
     # Filtrage des colonnes
-    # df = df["sexe", "nb_enfants", "situation_fam", "statut", "categorie", "annee_adh", "age", "duree", "demissionnaire"]
-    # df = df[["sexe", "nb_enfants", "situation_fam", "age", "duree", "demissionnaire"]]
+    # df = df[["sexe", "nb_enfants", "situation_fam", "statut", "categorie", "annee_adh", "age", "duree", "demissionnaire"]]
+    # df = df[["sexe", "nb_enfants", "situation_fam", "statut", "categorie", "age", "duree", "demissionnaire"]]
 
     # Ligne 1: on ne discretise pas; Ligne 2: on discretise
     df["situation_fam"] = df["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
@@ -77,8 +78,10 @@ def main():
     # Création des données X et Y
     X, Y = get_XY(df, "f")
 
+    save_correlation(X)
+
     # Scale des données
-    scaler = StandardScaler()
+    scaler = MinMaxScaler()
     X_cols = X.columns
     x_scaled = scaler.fit_transform(X.values)
     X = pd.DataFrame(data = x_scaled, columns = X_cols)
@@ -91,10 +94,14 @@ def main():
 
     save_eigval_graph(eigval, p)
 
-    print(acp.explained_variance_ratio_)
+    # Variance expliquée par composante principale
+    # print(acp.explained_variance_ratio_)
     
+    # Sauvegarde des cercles de correlation de l'ACP avec les CP (0, 1) et (2, 3)
     correlation_circle(X, p, 0, 1, corvar)
     correlation_circle(X, p, 2, 3, corvar)
+
+    # Sauvegarde des graphes des instances de l'ACP avec les CP (0, 1) et (2, 3)
     save_acp_graph(acp, coord, X, Y, 0, 1)
     save_acp_graph(acp, coord, X, Y, 2, 3)
 
@@ -167,6 +174,7 @@ def save_acp_graph(acp, coord, data, Y, cp1, cp2, fixed = False):
     axes.set_xlabel("CP " + str(cp1 + 1))
     axes.set_ylabel("CP " + str(cp2 + 1))
     plt.savefig("fig/acp_instances_plan_" + str(cp1) + "-" + str(cp2))
+    print("ACP instance graph saved (" + str(cp1) + ", " + str(cp2) + ")")
     plt.close(fig)
 
 # Sauvegarde le cercle des corrélations
@@ -186,6 +194,7 @@ def correlation_circle(df, nb_var, x_axis, y_axis, corvar):
     cercle = plt.Circle((0, 0), 1, color = "blue", fill = False)
     axes.add_artist(cercle)
     plt.savefig("fig/acp_correlation_circle_axes_" + str(x_axis) + "_" + str(y_axis))
+    print("ACP correlation circle saved (" + str(x_axis) + ", " + str(y_axis) + ")")
     plt.close(fig)
 
 # Calcule la corvar de l'ACP
@@ -209,7 +218,14 @@ def save_eigval_graph(eigval, p):
     plt.ylabel("Eigen values")
     plt.xlabel("Factor number")
     plt.savefig("fig/acp_eigen_values")
+    print("ACP eigenvalues graph saved")
     plt.close(fig)
+
+def save_correlation(df, prefix = ""):
+    corr = df.corr()
+    ax = sn.heatmap(corr, annot = True)
+    plt.savefig("fig/" + prefix + "correlation")
+    print("Data correlation graph saved")
 
 if __name__ == "__main__":
     main()
