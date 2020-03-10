@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 import numpy as np
+import seaborn as sn
+import matplotlib.pyplot as plt
+from sklearn import tree
 from sklearn.dummy import DummyClassifier
 from sklearn.naive_bayes import GaussianNB
-from sklearn import tree
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.model_selection import cross_val_predict, cross_val_score
@@ -14,6 +16,7 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import cdist
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from scipy.spatial.distance import cdist
 
 
 pd.set_option('display.max_columns', None)
@@ -67,13 +70,17 @@ def main():
     # On ne garde que l'année de l'adhésion
     df["annee_adh"] = df["annee_adh"].str.slice(stop = 4).astype(int)
 
+    save_correlation(df, "_original")
+
     # Filtrage des colonnes
-    # df = df["sexe", "nb_enfants", "situation_fam", "statut", "categorie", "annee_adh", "age", "duree", "demissionnaire"]
+    # df = df[["sexe", "nb_enfants", "situation_fam", "statut", "categorie", "annee_adh", "age", "duree", "demissionnaire"]]
     df = df[["sexe", "nb_enfants", "situation_fam", "categorie", "age", "duree", "demissionnaire"]]
-    
+
+    save_correlation(df, "_filtered")
+
     # Ligne 1: on ne discretise pas; Ligne 2: on discretise
     # df["situation_fam"] = df["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
-    df = discretization(df, ["categorie", "situation_fam", "sexe"])
+    df = discretization(df, ["categorie", "situation_fam", "sexe"]) 
     
     # On prend autant de démissionnaires que de non démissionnaires
     mini = min([df[df["demissionnaire"] == True].count().iloc[0], df[df["demissionnaire"] == False].count().iloc[0]])
@@ -96,13 +103,14 @@ def main():
 
     save_eigval_graph(eigval, p)
 
-    print(acp.explained_variance_ratio_)
+    # Variance expliquée par composante principale
+    # print(acp.explained_variance_ratio_)
     
     # correlation_circle(X, p, 0, 1, corvar)
     # correlation_circle(X, p, 2, 3, corvar)
     # save_acp_graph(acp, coord, X, Y, 0, 1)
     # save_acp_graph(acp, coord, X, Y, 2, 3)
-
+    # test_predict(X, Y)
     # make_dendrogram(X)
     k = 5
     pca_components = pd.DataFrame(coord)
@@ -131,8 +139,6 @@ def make_Kmeans(k, X_raw, X_pca, Y):
     X_raw['labels'] = labels
     # print(X.groupby(['labels','nb_enfants']).size())
     # print(X.groupby(['labels','categorie']).size())
-    
-
 
 # Function called to plot the elbow graph for choosing the kmeans number of cluster.
 from R_square_clustering import r_square
@@ -240,6 +246,7 @@ def save_acp_graph(acp, coord, data, Y, cp1, cp2, fixed = False):
     axes.set_xlabel("CP " + str(cp1 + 1))
     axes.set_ylabel("CP " + str(cp2 + 1))
     plt.savefig("fig/acp_instances_plan_" + str(cp1) + "-" + str(cp2))
+    print("ACP instance graph saved (" + str(cp1) + ", " + str(cp2) + ")")
     plt.close(fig)
 
 # Sauvegarde le cercle des corrélations
@@ -259,6 +266,7 @@ def correlation_circle(df, nb_var, x_axis, y_axis, corvar):
     cercle = plt.Circle((0, 0), 1, color = "blue", fill = False)
     axes.add_artist(cercle)
     plt.savefig("fig/acp_correlation_circle_axes_" + str(x_axis) + "_" + str(y_axis))
+    print("ACP correlation circle saved (" + str(x_axis) + ", " + str(y_axis) + ")")
     plt.close(fig)
 
 # Calcule la corvar de l'ACP
@@ -278,11 +286,19 @@ def get_corvar(X, acp):
 def save_eigval_graph(eigval, p):
     fig = plt.figure()
     plt.plot(np.arange(1, p + 1), eigval)
-    plt.title("Scree plot")
+    plt.title("Variance par composante")
     plt.ylabel("Eigen values")
     plt.xlabel("Factor number")
     plt.savefig("fig/acp_eigen_values")
+    print("ACP eigenvalues graph saved")
     plt.close(fig)
+
+def save_correlation(df, postfix = ""):
+    corr = df.corr()
+    ax = sn.heatmap(corr, annot = True)
+    plt.savefig("fig/correlation" + postfix)
+    print("Data correlation graph saved")
+    plt.clf()
 
 if __name__ == "__main__":
     main()
