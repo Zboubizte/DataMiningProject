@@ -67,13 +67,17 @@ def main():
     # On ne garde que l'année de l'adhésion
     df["annee_adh"] = df["annee_adh"].str.slice(stop = 4).astype(int)
 
+    save_correlation(df, "_original")
+
     # Filtrage des colonnes
     # df = df[["sexe", "nb_enfants", "situation_fam", "statut", "categorie", "annee_adh", "age", "duree", "demissionnaire"]]
-    # df = df[["sexe", "nb_enfants", "situation_fam", "statut", "categorie", "age", "duree", "demissionnaire"]]
+    df = df[["sexe", "nb_enfants", "situation_fam", "categorie", "age", "duree", "demissionnaire"]]
+
+    save_correlation(df, "_filtered")
 
     # Ligne 1: on ne discretise pas; Ligne 2: on discretise
-    df["situation_fam"] = df["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
-    # df = discretization(df, ["categorie", "statut", "situation_fam", "sexe"])
+    # df["situation_fam"] = df["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
+    df = discretization(df, ["categorie", "situation_fam", "sexe"]) 
     
     # On prend autant de démissionnaires que de non démissionnaires
     mini = min([df[df["demissionnaire"] == True].count().iloc[0], df[df["demissionnaire"] == False].count().iloc[0]])
@@ -82,10 +86,9 @@ def main():
     # Création des données X et Y
     X, Y = get_XY(df, "f")
 
-    save_correlation(X)
-
     # Scale des données
-    scaler = MinMaxScaler()
+    # scaler = MinMaxScaler()
+    scaler = StandardScaler()
     X_cols = X.columns
     x_scaled = scaler.fit_transform(X.values)
     X = pd.DataFrame(data = x_scaled, columns = X_cols)
@@ -125,8 +128,6 @@ def make_Kmeans(k, X):
     X['labels'] = labels
     # print(X.groupby(['labels','nb_enfants']).size())
     # print(X.groupby(['labels','categorie']).size())
-    
-
 
 # Function called to plot the elbow graph for choosing the kmeans number of cluster.
 def make_elbow(X):
@@ -145,7 +146,6 @@ def make_elbow(X):
     plt.title('The Elbow Method showing the optimal k')
     plt.savefig('fig/k-means_elbow_method')
     plt.close()
-
 
 # Discrétisation des données catégorielles
 def discretization(df, col_list):
@@ -256,18 +256,19 @@ def get_corvar(X, acp):
 def save_eigval_graph(eigval, p):
     fig = plt.figure()
     plt.plot(np.arange(1, p + 1), eigval)
-    plt.title("Scree plot")
+    plt.title("Variance par composante")
     plt.ylabel("Eigen values")
     plt.xlabel("Factor number")
     plt.savefig("fig/acp_eigen_values")
     print("ACP eigenvalues graph saved")
     plt.close(fig)
 
-def save_correlation(df, prefix = ""):
+def save_correlation(df, postfix = ""):
     corr = df.corr()
     ax = sn.heatmap(corr, annot = True)
-    plt.savefig("fig/" + prefix + "correlation")
+    plt.savefig("fig/correlation" + postfix)
     print("Data correlation graph saved")
+    plt.clf()
 
 if __name__ == "__main__":
     main()
