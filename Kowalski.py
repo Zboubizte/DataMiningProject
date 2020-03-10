@@ -10,6 +10,7 @@ from sklearn.model_selection import cross_val_predict, cross_val_score
 from sklearn.metrics import confusion_matrix
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
+from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import cdist
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
@@ -68,18 +69,18 @@ def main():
 
     # Filtrage des colonnes
     # df = df["sexe", "nb_enfants", "situation_fam", "statut", "categorie", "annee_adh", "age", "duree", "demissionnaire"]
-    # df = df[["sexe", "nb_enfants", "situation_fam", "age", "duree", "demissionnaire"]]
-
+    df = df[["sexe", "nb_enfants", "situation_fam", "categorie", "age", "duree", "demissionnaire"]]
+    
     # Ligne 1: on ne discretise pas; Ligne 2: on discretise
-    df["situation_fam"] = df["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
-    # df = discretization(df, ["categorie", "statut", "situation_fam", "sexe"])
+    # df["situation_fam"] = df["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
+    df = discretization(df, ["categorie", "situation_fam", "sexe"])
     
     # On prend autant de démissionnaires que de non démissionnaires
     mini = min([df[df["demissionnaire"] == True].count().iloc[0], df[df["demissionnaire"] == False].count().iloc[0]])
     df = df.groupby(["demissionnaire"]).apply(lambda grp: grp.sample(n = mini)).reset_index(level = [0, 1], drop = True)
 
     # Création des données X et Y
-    X, Y = get_XY(df, "f")
+    X, Y = get_XY(df, "d")
 
     # Scale des données
     scaler = StandardScaler()
@@ -97,39 +98,53 @@ def main():
 
     print(acp.explained_variance_ratio_)
     
-    correlation_circle(X, p, 0, 1, corvar)
-    correlation_circle(X, p, 2, 3, corvar)
-    save_acp_graph(acp, coord, X, Y, 0, 1)
-    save_acp_graph(acp, coord, X, Y, 2, 3)
+    # correlation_circle(X, p, 0, 1, corvar)
+    # correlation_circle(X, p, 2, 3, corvar)
+    # save_acp_graph(acp, coord, X, Y, 0, 1)
+    # save_acp_graph(acp, coord, X, Y, 2, 3)
 
-    # make_elbow(X);
-    k = 4
+    # make_dendrogram(X)
+    k = 5
     pca_components = pd.DataFrame(coord)
-    make_Kmeans(k, pca_components);
+    make_elbow(X);
+    make_Kmeans(k, X, pca_components.iloc[:, :6], Y);
 
-def make_Kmeans(k, X):
+def make_Kmeans(k, X_raw, X_pca, Y):
     
-    model = KMeans(n_clusters=k)
-    fig = plt.figure(figsize=(8, 6))
-    # ax = Axes3D(fig, rect=[0, 0, .95, 1], elev=48, azim=134)
-    f, ax = plt.subplots(1, 1, sharey=True,figsize=(10,6))
-    model.fit(X)
+    model = KMeans(n_clusters=k, n_init = 20)
+
+    # model.fit(X_pca)
+    # labels = model.labels_
+    # print(labels)
+    #Compute cluster centers and predict cluster indices
+    X_clustered = model.fit_predict(X_pca)
+
+    # Plot the scatter digram
+    plt.figure(figsize = (7,7))
     labels = model.labels_
-    X['labels'] = labels
+    plt.scatter(X_pca.iloc[:,0],X_pca.iloc[:,1], c= labels.astype(np.float), alpha=0.5) 
+    plt.savefig("fig/Kmeans_" + str(k) +"_pca")
+    df_res = pd.DataFrame(Y.values, columns=['realData'])
+    df_res["labels"] = labels
+    print(df_res)
+    model.fit(X_raw)
+    X_raw['labels'] = labels
     # print(X.groupby(['labels','nb_enfants']).size())
     # print(X.groupby(['labels','categorie']).size())
     
 
 
 # Function called to plot the elbow graph for choosing the kmeans number of cluster.
+from R_square_clustering import r_square
 def make_elbow(X):
  # Plot elbow graphs for KMeans using R square and purity scores
-    lst_k=range(2,10)
+    lst_k=range(1,10)
     lst_rsq = []
     for k in lst_k:
         kmeanModel = KMeans(n_clusters=k).fit(X)
         kmeanModel.fit(X)
-        lst_rsq.append(sum(np.min(cdist(X, kmeanModel.cluster_centers_, 'euclidean'), axis=1)) / X.shape[0])
+        # lst_rsq.append(np.average(np.min(cdist(X, kmeanModel.cluster_centers_, 'euclidean'), axis=1)) / X.shape[0])
+        lst_rsq.append(r_square(X.values, kmeanModel.cluster_centers_,kmeanModel.labels_,k))
 
     fig = plt.figure()
     plt.plot(lst_k, lst_rsq, 'bx-')
@@ -139,6 +154,22 @@ def make_elbow(X):
     plt.savefig('fig/k-means_elbow_method')
     plt.close()
 
+
+def make_dendrogram(X_norm):
+    # hierarchical clustering
+    # lst_labels = map(lambda pair: pair[0]+str(pair[1]), zip(fruits['fruit_name'].values,fruits.index))
+    linkage_matrix = linkage(X_norm, 'ward')
+    fig = plt.figure()
+    dendrogram(
+        linkage_matrix,
+        color_threshold=0,
+    )
+    plt.title('Hierarchical Clustering Dendrogram (Ward)')
+    plt.xlabel('sample index')
+    plt.ylabel('distance')
+    plt.tight_layout()
+    plt.savefig('fig/hierarchical-clustering')
+    plt.close()
 
 # Discrétisation des données catégorielles
 def discretization(df, col_list):
