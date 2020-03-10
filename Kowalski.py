@@ -16,11 +16,13 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import cdist
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from scipy.spatial.distance import cdist
+from R_square_clustering import r_square
 
 
+scaler = None
 pd.set_option('display.max_columns', None)
 def main():
+    global scaler
     # Chargement des datasets
     df_demissionnaire = pd.read_csv("donnees/data_mining_DB_clients_tbl.csv",
                         usecols = ["CDSEXE", "NBENF", "CDSITFAM", "DTADH", "CDTMT", "CDCATCL", "agedem", "adh"])
@@ -111,7 +113,7 @@ def main():
     # save_acp_graph(acp, coord, X, Y, 0, 1)
     # save_acp_graph(acp, coord, X, Y, 2, 3)
     # test_predict(X, Y)
-    # make_dendrogram(X)
+    make_dendrogram(X)
     k = 5
     pca_components = pd.DataFrame(coord)
     make_elbow(X);
@@ -120,10 +122,6 @@ def main():
 def make_Kmeans(k, X_raw, X_pca, Y):
     
     model = KMeans(n_clusters=k, n_init = 20)
-
-    # model.fit(X_pca)
-    # labels = model.labels_
-    # print(labels)
     #Compute cluster centers and predict cluster indices
     X_clustered = model.fit_predict(X_pca)
 
@@ -134,14 +132,24 @@ def make_Kmeans(k, X_raw, X_pca, Y):
     plt.savefig("fig/Kmeans_" + str(k) +"_pca")
     df_res = pd.DataFrame(Y.values, columns=['realData'])
     df_res["labels"] = labels
-    print(df_res)
     model.fit(X_raw)
+    X_raw = pd.DataFrame(scaler.inverse_transform(X_raw), columns = X_raw.columns)
+    print(X_raw)
     X_raw['labels'] = labels
-    # print(X.groupby(['labels','nb_enfants']).size())
-    # print(X.groupby(['labels','categorie']).size())
+    bins = np.linspace(-10, 10, 30)
+    plt.clf()
+    for col in X_raw.columns:
+        print(col," --------------------------")
+        res = X_raw.groupby(['labels',col]).size()
+        print(res)
+        # print ggplot(res, aes(x=col, weight = res.iloc[:,-1], fill = 'labels')) + geom_bar() + theme_bw()
+        plt.hist(res, bins, label=['x', 'y'])
+        plt.legend(loc='upper right')
+        plt.show()
+        plt.clf()
 
 # Function called to plot the elbow graph for choosing the kmeans number of cluster.
-from R_square_clustering import r_square
+
 def make_elbow(X):
  # Plot elbow graphs for KMeans using R square and purity scores
     lst_k=range(1,10)
@@ -169,6 +177,7 @@ def make_dendrogram(X_norm):
     dendrogram(
         linkage_matrix,
         color_threshold=0,
+        show_leaf_counts = True
     )
     plt.title('Hierarchical Clustering Dendrogram (Ward)')
     plt.xlabel('sample index')
