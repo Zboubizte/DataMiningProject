@@ -117,73 +117,69 @@ def main():
     k = 5
     pca_components = pd.DataFrame(coord)
     make_elbow(X);
-    make_Kmeans(k, X, pca_components.iloc[:, :6], Y);
+    # make_Kmeans(k, X, pca_components.iloc[:, :6], Y);
 
 def make_Kmeans(k, X_raw, X_pca, Y):
-    
-    model = KMeans(n_clusters=k, n_init = 20)
+    model = KMeans(n_clusters = k, n_init = 20)
     #Compute cluster centers and predict cluster indices
     X_clustered = model.fit_predict(X_pca)
 
     # Plot the scatter digram
     plt.figure(figsize = (7,7))
     labels = model.labels_
-    plt.scatter(X_pca.iloc[:,0],X_pca.iloc[:,1], c= labels.astype(np.float), alpha=0.5) 
-    plt.savefig("fig/Kmeans_" + str(k) +"_pca")
-    df_res = pd.DataFrame(Y.values, columns=['realData'])
+    plt.scatter(X_pca.iloc[:, 0],X_pca.iloc[:, 1], c = labels.astype(np.float), alpha = 0.5) 
+    plt.savefig("fig/Kmeans_" + str(k) + "_pca")
+    df_res = pd.DataFrame(Y.values, columns = ["realData"])
     df_res["labels"] = labels
     model.fit(X_raw)
     X_raw = pd.DataFrame(scaler.inverse_transform(X_raw), columns = X_raw.columns)
     print(X_raw)
-    X_raw['labels'] = labels
+    X_raw["labels"] = labels
     bins = np.linspace(-10, 10, 30)
     plt.clf()
     for col in X_raw.columns:
         print(col," --------------------------")
-        res = X_raw.groupby(['labels',col]).size()
+        res = X_raw.groupby(["labels",col]).size()
         print(res)
-        # print ggplot(res, aes(x=col, weight = res.iloc[:,-1], fill = 'labels')) + geom_bar() + theme_bw()
-        plt.hist(res, bins, label=['x', 'y'])
-        plt.legend(loc='upper right')
+        # print ggplot(res, aes(x=col, weight = res.iloc[:,-1], fill = "labels")) + geom_bar() + theme_bw()
+        plt.hist(res, bins, label = ["x", "y"])
+        plt.legend(loc = "upper right")
         plt.show()
         plt.clf()
 
 # Function called to plot the elbow graph for choosing the kmeans number of cluster.
-
 def make_elbow(X):
- # Plot elbow graphs for KMeans using R square and purity scores
-    lst_k=range(1,10)
+    lst_k = range(1, 10)
     lst_rsq = []
     for k in lst_k:
-        kmeanModel = KMeans(n_clusters=k).fit(X)
+        kmeanModel = KMeans(n_clusters = k).fit(X)
         kmeanModel.fit(X)
-        # lst_rsq.append(np.average(np.min(cdist(X, kmeanModel.cluster_centers_, 'euclidean'), axis=1)) / X.shape[0])
+        # lst_rsq.append(np.average(np.min(cdist(X, kmeanModel.cluster_centers_, "euclidean"), axis=1)) / X.shape[0])
         lst_rsq.append(r_square(X.values, kmeanModel.cluster_centers_,kmeanModel.labels_,k))
 
     fig = plt.figure()
-    plt.plot(lst_k, lst_rsq, 'bx-')
-    plt.xlabel('k')
-    plt.ylabel('RSQ score')
-    plt.title('The Elbow Method showing the optimal k')
-    plt.savefig('fig/k-means_elbow_method')
+    plt.plot(lst_k, lst_rsq, "bx-")
+    plt.xlabel("k")
+    plt.ylabel("RSQ score")
+    plt.title("The Elbow Method showing the optimal k")
+    plt.savefig("fig/k-means_elbow_method")
     plt.close()
-
 
 def make_dendrogram(X_norm):
     # hierarchical clustering
-    # lst_labels = map(lambda pair: pair[0]+str(pair[1]), zip(fruits['fruit_name'].values,fruits.index))
-    linkage_matrix = linkage(X_norm, 'ward')
+    # lst_labels = map(lambda pair: pair[0]+str(pair[1]), zip(fruits["fruit_name"].values,fruits.index))
+    linkage_matrix = linkage(X_norm, "ward")
     fig = plt.figure()
     dendrogram(
         linkage_matrix,
         color_threshold=0,
         show_leaf_counts = True
     )
-    plt.title('Hierarchical Clustering Dendrogram (Ward)')
-    plt.xlabel('sample index')
-    plt.ylabel('distance')
+    plt.title("Hierarchical Clustering Dendrogram (Ward)")
+    plt.xlabel("sample index")
+    plt.ylabel("distance")
     plt.tight_layout()
-    plt.savefig('fig/hierarchical-clustering')
+    plt.savefig("fig/hierarchical-clustering")
     plt.close()
 
 # Discrétisation des données catégorielles
@@ -302,6 +298,7 @@ def save_eigval_graph(eigval, p):
     print("ACP eigenvalues graph saved")
     plt.close(fig)
 
+# Sauvegarde de la heatmap de correlation des données df
 def save_correlation(df, postfix = ""):
     corr = df.corr()
     ax = sn.heatmap(corr, annot = True)
