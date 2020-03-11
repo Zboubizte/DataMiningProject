@@ -18,21 +18,37 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from R_square_clustering import r_square
 
-
 scaler = None
-pd.set_option('display.max_columns', None)
+pd.set_option("display.max_columns", None)
+
 def main():
     global scaler
+
+    ##################################################
+    ##################################################
+    #####                                        #####
+    #####       RECUPERATION DES DONNEES         #####
+    #####                                        #####
+    ##################################################
+    ##################################################
+
     # Chargement des datasets
     df_demissionnaire = pd.read_csv("donnees/data_mining_DB_clients_tbl.csv",
                         usecols = ["CDSEXE", "NBENF", "CDSITFAM", "DTADH", "CDTMT", "CDCATCL", "agedem", "adh"])
     df_random = pd.read_csv("donnees/data_mining_DB_clients_tbl_bis.csv",
                         usecols = ["CDSEXE", "NBENF", "CDSITFAM", "DTADH", "CDTMT", "CDCATCL", "CDMOTDEM", "DTDEM", "DTNAIS"])
 
+    ##################################################
+    ##################################################
+    #####                                        #####
+    #####         NETTOYAGE DES DONNEES          #####
+    #####                                        #####
+    ##################################################
+    ##################################################
+
     # On remplace le motif de démission par une colonne "démissionnaire"
     df_demissionnaire["demissionnaire"] = True
     df_random["demissionnaire"] = np.where(df_random["CDMOTDEM"].notnull(), True, False)
-    #df_random = df_random.drop(columns = "CDMOTDEM")
 
     # On renomme les colonnes
     df_demissionnaire = df_demissionnaire.rename(columns = {"agedem": "age", "adh": "duree"})
@@ -58,6 +74,14 @@ def main():
     df_demissionnaire = df_demissionnaire[["CDSEXE", "NBENF", "CDSITFAM", "CDTMT", "CDCATCL", "DTADH", "age", "duree", "demissionnaire"]]
     df_random = df_random[["CDSEXE", "NBENF", "CDSITFAM", "CDTMT", "CDCATCL", "DTADH", "age", "duree", "demissionnaire"]]
 
+    ##################################################
+    ##################################################
+    #####                                        #####
+    #####           FUSION DES DONNEES           #####
+    #####                                        #####
+    ##################################################
+    ##################################################
+
     # On concatène les deux datasets
     df = pd.concat([df_demissionnaire, df_random], ignore_index = True)
     df["age"] = df["age"].astype(int)
@@ -72,16 +96,26 @@ def main():
     # On ne garde que l'année de l'adhésion
     df["annee_adh"] = df["annee_adh"].str.slice(stop = 4).astype(int)
 
+    # Permet de voir la correlation des données brutes
     save_correlation(df, "_original")
 
     # Filtrage des colonnes
-    # df = df[["sexe", "nb_enfants", "situation_fam", "statut", "categorie", "annee_adh", "age", "duree", "demissionnaire"]]
+    #df = df[["sexe", "nb_enfants", "situation_fam", "statut", "categorie", "annee_adh", "age", "duree", "demissionnaire"]]
     df = df[["sexe", "nb_enfants", "situation_fam", "categorie", "age", "duree", "demissionnaire"]]
 
+    # Permet de voir la correlation des données filtrées
     save_correlation(df, "_filtered")
 
+    ##################################################
+    ##################################################
+    #####                                        #####
+    #####         RECODAGE DES DONNEES           #####
+    #####                                        #####
+    ##################################################
+    ##################################################
+
     # Ligne 1: on ne discretise pas; Ligne 2: on discretise
-    # df["situation_fam"] = df["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
+    #df["situation_fam"] = df["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
     df = discretization(df, ["categorie", "situation_fam", "sexe"]) 
     
     # On prend autant de démissionnaires que de non démissionnaires
@@ -98,26 +132,47 @@ def main():
     X = pd.DataFrame(data = x_scaled, columns = X_cols)
     Y = Y.reset_index()["demissionnaire"]
 
+    ##################################################
+    ##################################################
+    #####                                        #####
+    #####   ANALYSE / CLUSTERING DES DONNEES     #####
+    #####                                        #####
+    ##################################################
+    ##################################################
+
     # ACP sur les données X
     acp = PCA(svd_solver = "full")
-    coord = acp.fit_transform(X)
+    coord = pd.DataFrame(acp.fit_transform(X))
     corvar, eigval, n, p = get_corvar(X, acp)
 
+    # Affichage de la courpe de variable exprimée par les composantes
     save_eigval_graph(eigval, p)
 
     # Variance expliquée par composante principale
-    # print(acp.explained_variance_ratio_)
+    #print(acp.explained_variance_ratio_)
     
-    # correlation_circle(X, p, 0, 1, corvar)
-    # correlation_circle(X, p, 2, 3, corvar)
-    # save_acp_graph(acp, coord, X, Y, 0, 1)
-    # save_acp_graph(acp, coord, X, Y, 2, 3)
-    # test_predict(X, Y)
+    # Cercle de corrélation des composantes 0-1 et 2-3
+    #correlation_circle(X, p, 0, 1, corvar)
+    #correlation_circle(X, p, 2, 3, corvar)
+
+    # Affichage des données projetées sur ces mêmes composantes
+    save_acp_graph(acp, coord, X, Y, 0, 1)
+    save_acp_graph(acp, coord, X, Y, 2, 3)
+
+    # Clustering hiérarchique des données
     make_dendrogram(X)
-    k = 5
-    pca_components = pd.DataFrame(coord)
     make_elbow(X);
-    # make_Kmeans(k, X, pca_components.iloc[:, :6], Y);
+    #make_Kmeans(5, X, coord.iloc[:, :6], Y);
+
+    ##################################################
+    ##################################################
+    #####                                        #####
+    #####          ANALYSE DES DONNEES           #####
+    #####                                        #####
+    ##################################################
+    ##################################################
+
+    #test_predict(X, Y)
 
 def make_Kmeans(k, X_raw, X_pca, Y):
     model = KMeans(n_clusters = k, n_init = 20)
@@ -235,15 +290,15 @@ def save_acp_graph(acp, coord, data, Y, cp1, cp2, fixed = False):
 
     # Affichage des instances étiquetées par le code du pays suivant les 2 facteurs principaux de l"ACP
     fig, axes = plt.subplots(figsize = (12, 12))
-    xmin = min(coord[:, cp1]) if not fixed else (-45 if cp1 == 0 else -5)
-    xmax = max(coord[:, cp1]) if not fixed else (45 if cp1 == 0 else 5)
-    ymin = min(coord[:, cp2]) if not fixed else (-45 if cp1 == 0 else -5)
-    ymax = max(coord[:, cp2]) if not fixed else (45 if cp1 == 0 else 5)
+    xmin = min(coord.iloc[:, cp1]) if not fixed else (-45 if cp1 == 0 else -5)
+    xmax = max(coord.iloc[:, cp1]) if not fixed else (45 if cp1 == 0 else 5)
+    ymin = min(coord.iloc[:, cp2]) if not fixed else (-45 if cp1 == 0 else -5)
+    ymax = max(coord.iloc[:, cp2]) if not fixed else (45 if cp1 == 0 else 5)
     axes.set_xlim(xmin, xmax)
     axes.set_ylim(ymin, ymax)
 
     for i in range(n):
-        plt.annotate(".", (coord[i, cp1], coord[i, cp2]), color = ("blue" if Y.loc[i] == 0 else "red"))
+        plt.annotate(".", (coord.iloc[i, cp1], coord.iloc[i, cp2]), color = ("blue" if Y.loc[i] == 0 else "red"))
 
     plt.plot([xmin, xmax], [0, 0], color = "silver", linestyle = "-", linewidth = 1)
     plt.plot([0, 0], [ymin, ymax], color = "silver", linestyle = "-", linewidth = 1)
