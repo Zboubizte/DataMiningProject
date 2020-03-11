@@ -159,8 +159,13 @@ def main(args):
         coord = pd.DataFrame(acp.fit_transform(X))
         corvar, eigval, n, p = get_corvar(X, acp)
 
+<<<<<<< HEAD
         # Affichage de la courpe de variable exprimée par les composantes
         save_eigval_graph(eigval, p)
+=======
+    # Affichage de la courpe de variable exprimée par les composantes
+    # save_eigval_graph(eigval, p)
+>>>>>>> 4c990fda40d98080c30a4e6d0843894025e60fe1
 
         # Variance expliquée par composante principale
         print(acp.explained_variance_ratio_)
@@ -169,6 +174,7 @@ def main(args):
         correlation_circle(X, p, 0, 1, corvar)
         correlation_circle(X, p, 2, 3, corvar)
 
+<<<<<<< HEAD
         # Affichage des données projetées sur ces mêmes composantes
         save_acp_graph(acp, coord, X, Y, 0, 1, n, p, corvar)
         save_acp_graph(acp, coord, X, Y, 2, 3, n, p, corvar)
@@ -177,11 +183,25 @@ def main(args):
         #make_dendrogram(X)
         make_elbow(X)
         #make_Kmeans(5, X, coord.iloc[:, :4], Y);
+=======
+    # Affichage des données projetées sur ces mêmes composantes
+    # save_acp_graph(acp, coord, X, Y, 0, 1)
+    # save_acp_graph(acp, coord, X, Y, 2, 3)
+
+    # Clustering hiérarchique des données
+    # make_dendrogram(X)
+    make_elbow(X);
+    make_Kmeans(5, X, coord.iloc[:, :6], Y);
+>>>>>>> 4c990fda40d98080c30a4e6d0843894025e60fe1
 
     ##################################################
     ##################################################
     #####                                        #####
+<<<<<<< HEAD
     #####         PREDICTION DES DONNEES         #####
+=======
+    #####      CLASSIFICATION DES DONNEES        #####
+>>>>>>> 4c990fda40d98080c30a4e6d0843894025e60fe1
     #####                                        #####
     ##################################################
     ##################################################
@@ -204,19 +224,41 @@ def make_Kmeans(k, X_raw, X_pca, Y):
     df_res["labels"] = labels
     model.fit(X_raw)
     X_raw = pd.DataFrame(scaler.inverse_transform(X_raw), columns = X_raw.columns)
-    print(X_raw)
     X_raw["labels"] = labels
     bins = np.linspace(-10, 10, 30)
     plt.clf()
     for col in X_raw.columns:
+        # ------------------ A FAIRE ------------------------
         print(col," --------------------------")
         res = X_raw.groupby(["labels",col]).size()
         print(res)
+<<<<<<< HEAD
         #print ggplot(res, aes(x=col, weight = res.iloc[:,-1], fill = "labels")) + geom_bar() + theme_bw()
         plt.hist(res, bins, label = ["x", "y"])
         plt.legend(loc = "upper right")
+=======
+        print("-------------------")
+        res = res.to_frame()
+        print("-------------------")
+        print(res)
+        print("-------------------")
+        res['values'] = res.values
+        print(res)
+        
+        print("----------RESSSSS---------")
+        print(res.loc[["values"]])
+        print(lelele)
+        # print ggplot(res, aes(x=col, weight = res.iloc[:,-1], fill = "labels")) + geom_bar() + theme_bw()
+        # plt.hist(res, bins, label = ["x", "y"])
+        # plt.legend(loc = "upper right")
+        # plt.show()
+        # plt.clf()
+
+        plt.figure(figsize=(10,6))
+        print(type(res))
+        sn.barplot(x=col, hue="labels", y=res.iloc[:,-1], data=res)
+>>>>>>> 4c990fda40d98080c30a4e6d0843894025e60fe1
         plt.show()
-        plt.clf()
 
 # Function called to plot the elbow graph for choosing the kmeans number of cluster.
 def make_elbow(X):
