@@ -146,7 +146,7 @@ def main():
     corvar, eigval, n, p = get_corvar(X, acp)
 
     # Affichage de la courpe de variable exprimée par les composantes
-    save_eigval_graph(eigval, p)
+    # save_eigval_graph(eigval, p)
 
     # Variance expliquée par composante principale
     #print(acp.explained_variance_ratio_)
@@ -156,18 +156,18 @@ def main():
     #correlation_circle(X, p, 2, 3, corvar)
 
     # Affichage des données projetées sur ces mêmes composantes
-    save_acp_graph(acp, coord, X, Y, 0, 1)
-    save_acp_graph(acp, coord, X, Y, 2, 3)
+    # save_acp_graph(acp, coord, X, Y, 0, 1)
+    # save_acp_graph(acp, coord, X, Y, 2, 3)
 
     # Clustering hiérarchique des données
-    make_dendrogram(X)
+    # make_dendrogram(X)
     make_elbow(X);
-    #make_Kmeans(5, X, coord.iloc[:, :6], Y);
+    make_Kmeans(5, X, coord.iloc[:, :6], Y);
 
     ##################################################
     ##################################################
     #####                                        #####
-    #####          ANALYSE DES DONNEES           #####
+    #####      CLASSIFICATION DES DONNEES        #####
     #####                                        #####
     ##################################################
     ##################################################
@@ -188,19 +188,35 @@ def make_Kmeans(k, X_raw, X_pca, Y):
     df_res["labels"] = labels
     model.fit(X_raw)
     X_raw = pd.DataFrame(scaler.inverse_transform(X_raw), columns = X_raw.columns)
-    print(X_raw)
     X_raw["labels"] = labels
     bins = np.linspace(-10, 10, 30)
     plt.clf()
     for col in X_raw.columns:
+        # ------------------ A FAIRE ------------------------
         print(col," --------------------------")
         res = X_raw.groupby(["labels",col]).size()
         print(res)
+        print("-------------------")
+        res = res.to_frame()
+        print("-------------------")
+        print(res)
+        print("-------------------")
+        res['values'] = res.values
+        print(res)
+        
+        print("----------RESSSSS---------")
+        print(res.loc[["values"]])
+        print(lelele)
         # print ggplot(res, aes(x=col, weight = res.iloc[:,-1], fill = "labels")) + geom_bar() + theme_bw()
-        plt.hist(res, bins, label = ["x", "y"])
-        plt.legend(loc = "upper right")
+        # plt.hist(res, bins, label = ["x", "y"])
+        # plt.legend(loc = "upper right")
+        # plt.show()
+        # plt.clf()
+
+        plt.figure(figsize=(10,6))
+        print(type(res))
+        sn.barplot(x=col, hue="labels", y=res.iloc[:,-1], data=res)
         plt.show()
-        plt.clf()
 
 # Function called to plot the elbow graph for choosing the kmeans number of cluster.
 def make_elbow(X):
