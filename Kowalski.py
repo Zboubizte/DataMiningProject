@@ -167,19 +167,22 @@ def main(args):
         # Variance expliquée par composante principale
         print(acp.explained_variance_ratio_)
         
-        # Cercle de corrélation des composantes 0-1 et 2-3
-        correlation_circle(X, p, 0, 1, corvar)
-        correlation_circle(X, p, 2, 3, corvar)
+        if not args.nograph:
+            # Cercle de corrélation des composantes 0-1 et 2-3
+            correlation_circle(X, p, 0, 1, corvar)
+            correlation_circle(X, p, 2, 3, corvar)
 
-        # Affichage des données projetées sur ces mêmes composantes
-        save_acp_graph(acp, coord, X, Y, 0, 1, n, p, corvar)
-        save_acp_graph(acp, coord, X, Y, 2, 3, n, p, corvar)
+            # Affichage des données projetées sur ces mêmes composantes
+            save_acp_graph(acp, coord, X, Y, 0, 1, n, p, corvar)
+            save_acp_graph(acp, coord, X, Y, 2, 3, n, p, corvar)
 
         # Clustering hiérarchique des données
-        if type_exec == "d":
-            # make_dendrogram(X)
+        if type_exec != "n":
+            if args.dendrogram:
+                make_dendrogram(X)
             make_elbow(X);
-            make_Kmeans(5, coord.iloc[:, :6], Y, X_base);
+            for i in range (2, 6):
+                make_Kmeans(i, coord.iloc[:, :6], Y, X_base);
 
     ##################################################
     ##################################################
@@ -217,6 +220,7 @@ def make_Kmeans(k, X_pca, Y, X_base):
             plt.figure(figsize=(10,6))
             sn.barplot(x=col, hue="labels", y="counts", data=res)
             plt.savefig("fig/" + type_exec + "/kmeans/"+ col)
+            plt.close()
 
 # Function called to plot the elbow graph for choosing the kmeans number of cluster.
 def make_elbow(X):
@@ -273,6 +277,15 @@ def get_XY(df, choix):
         return df.drop(columns = "demissionnaire"), df["demissionnaire"].astype(int)
     else:
         exit("erreur")
+
+def pred_X(X, Y, individu):
+    dectree = tree.DecisionTreeClassifier()
+    dectree.fit(X, Y)
+
+    if dectree.predict([individu])[0] == 0:
+        print("Il va démissionner !")
+    else:
+        print("Il ne va pas démissionner !")
 
 # Teste de prédire les données avec 5 classifiers différents
 def test_predict(X, Y):
@@ -388,13 +401,16 @@ if __name__ == "__main__":
     group1 = parser.add_mutually_exclusive_group(required = True)
     group2 = parser.add_mutually_exclusive_group(required = True)
 
-    group1.add_argument( "-f", "--full", help = "Execution du script sur tous les adhérents", action = "store_true", default = False)
-    group1.add_argument( "-d", "--demissionnaire", help = "Execution du script sur les demissionnaires", action = "store_true", default = False)
-    group1.add_argument( "-n", "--nondemissionnaire", help = "Execution du script sur les non demissionnaires", action = "store_true", default = False)
+    group1.add_argument("-f", "--full", help = "Execution du script sur tous les adhérents", action = "store_true", default = False)
+    group1.add_argument("-d", "--demissionnaire", help = "Execution du script sur les demissionnaires", action = "store_true", default = False)
+    group1.add_argument("-n", "--nondemissionnaire", help = "Execution du script sur les non demissionnaires", action = "store_true", default = False)
 
-    group2.add_argument( "-c", "--clustering", help = "Clustering des données", action = "store_true", default = False)
-    group2.add_argument( "-p", "--prediction", help = "Prédiction des données", action = "store_true", default = False)
-    group2.add_argument( "-pa", "--predcluster", help = "Clustering et prédiction des données", action = "store_true", default = False)
+    group2.add_argument("-c", "--clustering", help = "Clustering des données", action = "store_true", default = False)
+    group2.add_argument("-p", "--prediction", help = "Prédiction des données", action = "store_true", default = False)
+    group2.add_argument("-pc", "--predcluster", help = "Clustering et prédiction des données", action = "store_true", default = False)
+
+    parser.add_argument("-ng", "--nograph", help = "Ne pas enregistrer les graphes de l'ACP", action = "store_true", default = False)
+    parser.add_argument("-dd", "--dendrogram", help = "Creer le dendrogramme", action = "store_true", default = False)
 
     args = parser.parse_args()
 
