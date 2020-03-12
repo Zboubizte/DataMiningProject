@@ -179,7 +179,7 @@ def main(args):
         if type_exec == "d":
             # make_dendrogram(X)
             make_elbow(X);
-            make_Kmeans(5, X, coord.iloc[:, :6], Y, X_base);
+            make_Kmeans(5, coord.iloc[:, :6], Y, X_base);
 
     ##################################################
     ##################################################
@@ -194,7 +194,7 @@ def main(args):
             save_tree(X_base_disc, Y_base_disc)
             test_predict(X, Y)
 
-def make_Kmeans(k, X_raw, X_pca, Y, X_base):
+def make_Kmeans(k, X_pca, Y, X_base):
     if not os.path.exists("fig/" + type_exec + "/kmeans"):
 		os.makedirs("fig/" + type_exec + "/kmeans")
 
@@ -207,9 +207,6 @@ def make_Kmeans(k, X_raw, X_pca, Y, X_base):
     labels = model.labels_
     plt.scatter(X_pca.iloc[:, 0],X_pca.iloc[:, 1], c = labels.astype(np.float), alpha = 0.5) 
     plt.savefig("fig/" + type_exec + "/kmeans/Kmeans_" + str(k) + "_pca")
-    model.fit(X_raw)
-    X_raw = pd.DataFrame(scaler.inverse_transform(X_raw), columns = X_raw.columns)
-    X_raw["labels"] = labels
     X_base["labels"] = labels
     bins = np.linspace(-10, 10, 30)
     plt.clf()
@@ -219,7 +216,7 @@ def make_Kmeans(k, X_raw, X_pca, Y, X_base):
             res = X_base.groupby(["labels",col]).size().reset_index(name='counts')
             plt.figure(figsize=(10,6))
             sn.barplot(x=col, hue="labels", y="counts", data=res)
-            plt.savefig("fig/" + type_exec + "/kmeans"+ col)
+            plt.savefig("fig/" + type_exec + "/kmeans/"+ col)
 
 # Function called to plot the elbow graph for choosing the kmeans number of cluster.
 def make_elbow(X):
