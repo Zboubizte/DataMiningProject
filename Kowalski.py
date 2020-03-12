@@ -4,6 +4,9 @@ import numpy as np
 import os
 import seaborn as sn
 import matplotlib.pyplot as plt
+import argparse
+import os
+import graphviz
 from sklearn import tree
 from sklearn.dummy import DummyClassifier
 from sklearn.naive_bayes import GaussianNB
@@ -20,10 +23,21 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from R_square_clustering import r_square
 
 scaler = None
+type_exec = ""
 pd.set_option("display.max_columns", None)
 
-def main():
-    global scaler
+def main(args):
+    global scaler, type_exec
+
+    if args.full:
+        type_exec = "f"
+    elif args.demissionnaire:
+        type_exec = "d"
+    else:
+        type_exec = "n"
+
+    if not os.path.exists("./fig/" + type_exec + "/"):
+	    os.makedirs("./fig/" + type_exec + "/")
 
     ##################################################
     ##################################################
@@ -114,20 +128,18 @@ def main():
     #####                                        #####
     ##################################################
     ##################################################
-
-   
+    
     # On prend autant de démissionnaires que de non démissionnaires
     mini = min([df[df["demissionnaire"] == True].count().iloc[0], df[df["demissionnaire"] == False].count().iloc[0]])
     df = df.groupby(["demissionnaire"]).apply(lambda grp: grp.sample(n = mini)).reset_index(level = [0, 1], drop = True)
 
-    # Ligne 1: on ne discretise pas; Ligne 2: on discretise
-    #df["situation_fam"] = df["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
+    #df_base["situation_fam"] = df_base["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
+    # Création des données X et Y. X_base et Y_base ne sont pas altérés à partir de maintenant
+
+    X, Y = get_XY(discretization(df, ["categorie", "situation_fam", "sexe"]), type_exec)
+    X_base_disc, Y_base_disc = get_XY(discretization(df, ["categorie", "situation_fam", "sexe"]), type_exec)
     X_base, Y_base = get_XY(df, "d")
-    df = discretization(df, ["categorie", "situation_fam", "sexe"]) 
-    
-    # Création des données X et Y
-    X, Y = get_XY(df, "d")
-    
+
     # Scale des données
     scaler = StandardScaler()
     X_cols = X.columns
@@ -143,29 +155,30 @@ def main():
     ##################################################
     ##################################################
 
-    # ACP sur les données X
-    acp = PCA(svd_solver = "full")
-    coord = pd.DataFrame(acp.fit_transform(X))
-    corvar, eigval, n, p = get_corvar(X, acp)
+    if args.predcluster or args.clustering:
+        # ACP sur les données X
+        acp = PCA(svd_solver = "full")
+        coord = pd.DataFrame(acp.fit_transform(X))
+        corvar, eigval, n, p = get_corvar(X, acp)
 
-    # Affichage de la courpe de variable exprimée par les composantes
-    # save_eigval_graph(eigval, p)
+        # Affichage de la courpe de variable exprimée par les composantes
+        save_eigval_graph(eigval, p)
 
-    # Variance expliquée par composante principale
-    #print(acp.explained_variance_ratio_)
-    
-    # Cercle de corrélation des composantes 0-1 et 2-3
-    #correlation_circle(X, p, 0, 1, corvar)
-    #correlation_circle(X, p, 2, 3, corvar)
+        # Variance expliquée par composante principale
+        print(acp.explained_variance_ratio_)
+        
+        # Cercle de corrélation des composantes 0-1 et 2-3
+        correlation_circle(X, p, 0, 1, corvar)
+        correlation_circle(X, p, 2, 3, corvar)
 
-    # Affichage des données projetées sur ces mêmes composantes
-    # save_acp_graph(acp, coord, X, Y, 0, 1)
-    # save_acp_graph(acp, coord, X, Y, 2, 3)
+        # Affichage des données projetées sur ces mêmes composantes
+        save_acp_graph(acp, coord, X, Y, 0, 1, n, p, corvar)
+        save_acp_graph(acp, coord, X, Y, 2, 3, n, p, corvar)
 
-    # Clustering hiérarchique des données
-    # make_dendrogram(X)
-    make_elbow(X);
-    make_Kmeans(5, X, coord.iloc[:, :6], Y, X_base);
+        # Clustering hiérarchique des données
+        # make_dendrogram(X)
+        make_elbow(X);
+        make_Kmeans(5, X, coord.iloc[:, :6], Y, X_base);
 
     ##################################################
     ##################################################
@@ -175,22 +188,24 @@ def main():
     ##################################################
     ##################################################
 
-    #test_predict(X, Y)
+    if args.predcluster or args.prediction:
+        if type_exec == "f":
+            save_tree(X_base_disc, Y_base_disc)
+            test_predict(X, Y)
 
 def make_Kmeans(k, X_raw, X_pca, Y, X_base):
     if not os.path.exists('fig/kmeans'):
 		os.makedirs('fig/kmeans')
 
     model = KMeans(n_clusters = k, n_init = 20)
-    #Compute cluster centers and predict cluster indices
+    # Compute cluster centers and predict cluster indices
     X_clustered = model.fit_predict(X_pca)
 
     # Plot the scatter digram
     plt.figure(figsize = (7,7))
     labels = model.labels_
     plt.scatter(X_pca.iloc[:, 0],X_pca.iloc[:, 1], c = labels.astype(np.float), alpha = 0.5) 
-    plt.savefig("fig/kmeans/Kmeans_" + str(k) + "_pca")
-
+    plt.savefig("fig/" + type_exec + "/kmeans/Kmeans_" + str(k) + "_pca")
     model.fit(X_raw)
     X_raw = pd.DataFrame(scaler.inverse_transform(X_raw), columns = X_raw.columns)
     X_raw["labels"] = labels
@@ -209,22 +224,24 @@ def make_Kmeans(k, X_raw, X_pca, Y, X_base):
 def make_elbow(X):
     lst_k = range(1, 10)
     lst_rsq = []
+
     for k in lst_k:
-        kmeanModel = KMeans(n_clusters = k).fit(X)
+        kmeanModel = KMeans(n_clusters = k)
         kmeanModel.fit(X)
-        lst_rsq.append(r_square(X.values, kmeanModel.cluster_centers_,kmeanModel.labels_,k))
+        # lst_rsq.append(np.average(np.min(cdist(X, kmeanModel.cluster_centers_, "euclidean"), axis=1)) / X.shape[0])
+        lst_rsq.append(r_square(X.values, kmeanModel.cluster_centers_, kmeanModel.labels_, k))
 
     fig = plt.figure()
     plt.plot(lst_k, lst_rsq, "bx-")
     plt.xlabel("k")
     plt.ylabel("RSQ score")
     plt.title("The Elbow Method showing the optimal k")
-    plt.savefig("fig/k-means_elbow_method")
+    plt.savefig("fig/" + type_exec + "/k-means_elbow_method")
     plt.close()
 
 def make_dendrogram(X_norm):
     # hierarchical clustering
-    # lst_labels = map(lambda pair: pair[0]+str(pair[1]), zip(fruits["fruit_name"].values,fruits.index))
+    # lst_labels = map(lambda pair: pair[0] + str(pair[1]), zip(fruits["fruit_name"].values, fruits.index))
     linkage_matrix = linkage(X_norm, "ward")
     fig = plt.figure()
     dendrogram(
@@ -236,7 +253,7 @@ def make_dendrogram(X_norm):
     plt.xlabel("sample index")
     plt.ylabel("distance")
     plt.tight_layout()
-    plt.savefig("fig/hierarchical-clustering")
+    plt.savefig("fig/" + type_exec + "/hierarchical-clustering")
     plt.close()
 
 # Discrétisation des données catégorielles
@@ -279,17 +296,8 @@ def test_predict(X, Y):
         print(confusion_matrix(Y, cross_val_predict(clf, X, Y, cv = 5)))
 
 # Sauvegarde du graphe de l'acp par rapport à deux composantes cp1 et cp2
-def save_acp_graph(acp, coord, data, Y, cp1, cp2, fixed = False):
-    # Calcul des valeurs propres et de la matrice de corrélation des variables
-    n = np.size(data, 0)
-    p = np.size(data, 1)
-    eigval = float(n - 1) / n * acp.explained_variance_
-    sqrt_eigval = np.sqrt(eigval)
-    corvar = np.zeros((p, p))
-
-    for k in range(p):
-        corvar[:, k] = acp.components_[k, :] * sqrt_eigval[k]
-
+def save_acp_graph(acp, coord, data, Y, cp1, cp2, n, p, corvar, fixed = False):
+    print("Saving ACP instance graph (" + str(cp1) + ", " + str(cp2) + ")...")
     # Affichage des instances étiquetées par le code du pays suivant les 2 facteurs principaux de l"ACP
     fig, axes = plt.subplots(figsize = (12, 12))
     xmin = min(coord.iloc[:, cp1]) if not fixed else (-45 if cp1 == 0 else -5)
@@ -307,12 +315,24 @@ def save_acp_graph(acp, coord, data, Y, cp1, cp2, fixed = False):
     axes.set_title("Composantes principales " + str(cp1) + " et " + str(cp2))
     axes.set_xlabel("CP " + str(cp1 + 1))
     axes.set_ylabel("CP " + str(cp2 + 1))
-    plt.savefig("fig/acp_instances_plan_" + str(cp1) + "-" + str(cp2))
-    print("ACP instance graph saved (" + str(cp1) + ", " + str(cp2) + ")")
+    plt.savefig("fig/" + type_exec + "/acp_instances_plan_" + str(cp1) + "-" + str(cp2))
     plt.close(fig)
+    print("Done")
+
+def save_tree(X, Y):
+    print("Saving Decision Tree...")
+    tree_clf = tree.DecisionTreeClassifier(random_state = 0)
+    tree_clf = tree_clf.fit(X, Y)
+    res = tree.export_graphviz(tree_clf, class_names = ["Non dem", "Dem"], filled = True, rounded = True, out_file = None, feature_names = X.columns, max_depth = 3)
+    img = graphviz.Source(res)
+    img.format = "png"
+    img.render("./fig/" + type_exec + "/decision_tree", view = False)
+    os.remove("./fig/" + type_exec + "/decision_tree")
+    print("Done")
 
 # Sauvegarde le cercle des corrélations
 def correlation_circle(df, nb_var, x_axis, y_axis, corvar):
+    print("Saving ACP correlation circle (" + str(x_axis) + ", " + str(y_axis) + ")...")
     fig, axes = plt.subplots(figsize = (8, 8))
     axes.set_xlim(-1, 1)
     axes.set_ylim(-1, 1)
@@ -327,9 +347,9 @@ def correlation_circle(df, nb_var, x_axis, y_axis, corvar):
 
     cercle = plt.Circle((0, 0), 1, color = "blue", fill = False)
     axes.add_artist(cercle)
-    plt.savefig("fig/acp_correlation_circle_axes_" + str(x_axis) + "_" + str(y_axis))
-    print("ACP correlation circle saved (" + str(x_axis) + ", " + str(y_axis) + ")")
+    plt.savefig("fig/" + type_exec + "/acp_correlation_circle_axes_" + str(x_axis) + "_" + str(y_axis))
     plt.close(fig)
+    print("Done")
 
 # Calcule la corvar de l'ACP
 def get_corvar(X, acp):
@@ -346,22 +366,38 @@ def get_corvar(X, acp):
 
 # Sauvegarde du graphe des eigval
 def save_eigval_graph(eigval, p):
+    print("Saving ACP eigenvalues graph...")
     fig = plt.figure()
     plt.plot(np.arange(1, p + 1), eigval)
     plt.title("Variance par composante")
     plt.ylabel("Eigen values")
     plt.xlabel("Factor number")
-    plt.savefig("fig/acp_eigen_values")
-    print("ACP eigenvalues graph saved")
+    plt.savefig("fig/" + type_exec + "/acp_eigen_values")
     plt.close(fig)
+    print("Done")
 
 # Sauvegarde de la heatmap de correlation des données df
 def save_correlation(df, postfix = ""):
+    print("Saving data correlation graph...")
     corr = df.corr()
     ax = sn.heatmap(corr, annot = True)
-    plt.savefig("fig/correlation" + postfix)
-    print("Data correlation graph saved")
+    plt.savefig("fig/" + type_exec + "/correlation" + postfix)
     plt.clf()
+    print("Done")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    group1 = parser.add_mutually_exclusive_group(required = True)
+    group2 = parser.add_mutually_exclusive_group(required = True)
+
+    group1.add_argument( "-f", "--full", help = "Execution du script sur tous les adhérents", action = "store_true", default = False)
+    group1.add_argument( "-d", "--demissionnaire", help = "Execution du script sur les demissionnaires", action = "store_true", default = False)
+    group1.add_argument( "-n", "--nondemissionnaire", help = "Execution du script sur les non demissionnaires", action = "store_true", default = False)
+
+    group2.add_argument( "-c", "--clustering", help = "Clustering des données", action = "store_true", default = False)
+    group2.add_argument( "-p", "--prediction", help = "Prédiction des données", action = "store_true", default = False)
+    group2.add_argument( "-pa", "--predcluster", help = "Clustering et prédiction des données", action = "store_true", default = False)
+
+    args = parser.parse_args()
+
+    main(args)
