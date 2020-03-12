@@ -138,7 +138,7 @@ def main(args):
 
     X, Y = get_XY(discretization(df, ["categorie", "situation_fam", "sexe"]), type_exec)
     X_base_disc, Y_base_disc = get_XY(discretization(df, ["categorie", "situation_fam", "sexe"]), type_exec)
-    X_base, Y_base = get_XY(df, "d")
+    X_base, Y_base = get_XY(df, type_exec)
 
     # Scale des données
     scaler = StandardScaler()
@@ -176,9 +176,10 @@ def main(args):
         save_acp_graph(acp, coord, X, Y, 2, 3, n, p, corvar)
 
         # Clustering hiérarchique des données
-        # make_dendrogram(X)
-        make_elbow(X);
-        make_Kmeans(5, X, coord.iloc[:, :6], Y, X_base);
+        if type_exec == "d":
+            # make_dendrogram(X)
+            make_elbow(X);
+            make_Kmeans(5, X, coord.iloc[:, :6], Y, X_base);
 
     ##################################################
     ##################################################
@@ -194,8 +195,8 @@ def main(args):
             test_predict(X, Y)
 
 def make_Kmeans(k, X_raw, X_pca, Y, X_base):
-    if not os.path.exists('fig/kmeans'):
-		os.makedirs('fig/kmeans')
+    if not os.path.exists("fig/" + type_exec + "/kmeans"):
+		os.makedirs("fig/" + type_exec + "/kmeans")
 
     model = KMeans(n_clusters = k, n_init = 20)
     # Compute cluster centers and predict cluster indices
@@ -218,7 +219,7 @@ def make_Kmeans(k, X_raw, X_pca, Y, X_base):
             res = X_base.groupby(["labels",col]).size().reset_index(name='counts')
             plt.figure(figsize=(10,6))
             sn.barplot(x=col, hue="labels", y="counts", data=res)
-            plt.savefig("fig/kmeans/"+ col)
+            plt.savefig("fig/" + type_exec + "/kmeans"+ col)
 
 # Function called to plot the elbow graph for choosing the kmeans number of cluster.
 def make_elbow(X):
