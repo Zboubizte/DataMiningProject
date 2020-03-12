@@ -5,6 +5,7 @@ import seaborn as sn
 import matplotlib.pyplot as plt
 import argparse
 import os
+import graphviz
 from sklearn import tree
 from sklearn.dummy import DummyClassifier
 from sklearn.naive_bayes import GaussianNB
@@ -126,17 +127,15 @@ def main(args):
     #####                                        #####
     ##################################################
     ##################################################
-
-    # Ligne 1: on ne discretise pas; Ligne 2: on discretise
-    #df["situation_fam"] = df["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
-    df = discretization(df, ["categorie", "situation_fam", "sexe"]) 
     
     # On prend autant de démissionnaires que de non démissionnaires
     mini = min([df[df["demissionnaire"] == True].count().iloc[0], df[df["demissionnaire"] == False].count().iloc[0]])
     df = df.groupby(["demissionnaire"]).apply(lambda grp: grp.sample(n = mini)).reset_index(level = [0, 1], drop = True)
 
-    # Création des données X et Y
-    X, Y = get_XY(df, type_exec)
+    #df_base["situation_fam"] = df_base["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
+    # Création des données X et Y. X_base et Y_base ne sont pas altérés à partir de maintenant
+    X, Y = get_XY(discretization(df, ["categorie", "situation_fam", "sexe"]), type_exec)
+    X_base, Y_base = get_XY(discretization(df, ["categorie", "situation_fam", "sexe"]), type_exec)
 
     # Scale des données
     scaler = StandardScaler()
@@ -159,13 +158,8 @@ def main(args):
         coord = pd.DataFrame(acp.fit_transform(X))
         corvar, eigval, n, p = get_corvar(X, acp)
 
-<<<<<<< HEAD
         # Affichage de la courpe de variable exprimée par les composantes
         save_eigval_graph(eigval, p)
-=======
-    # Affichage de la courpe de variable exprimée par les composantes
-    # save_eigval_graph(eigval, p)
->>>>>>> 4c990fda40d98080c30a4e6d0843894025e60fe1
 
         # Variance expliquée par composante principale
         print(acp.explained_variance_ratio_)
@@ -174,7 +168,6 @@ def main(args):
         correlation_circle(X, p, 0, 1, corvar)
         correlation_circle(X, p, 2, 3, corvar)
 
-<<<<<<< HEAD
         # Affichage des données projetées sur ces mêmes composantes
         save_acp_graph(acp, coord, X, Y, 0, 1, n, p, corvar)
         save_acp_graph(acp, coord, X, Y, 2, 3, n, p, corvar)
@@ -183,31 +176,18 @@ def main(args):
         #make_dendrogram(X)
         make_elbow(X)
         #make_Kmeans(5, X, coord.iloc[:, :4], Y);
-=======
-    # Affichage des données projetées sur ces mêmes composantes
-    # save_acp_graph(acp, coord, X, Y, 0, 1)
-    # save_acp_graph(acp, coord, X, Y, 2, 3)
-
-    # Clustering hiérarchique des données
-    # make_dendrogram(X)
-    make_elbow(X);
-    make_Kmeans(5, X, coord.iloc[:, :6], Y);
->>>>>>> 4c990fda40d98080c30a4e6d0843894025e60fe1
 
     ##################################################
     ##################################################
     #####                                        #####
-<<<<<<< HEAD
-    #####         PREDICTION DES DONNEES         #####
-=======
     #####      CLASSIFICATION DES DONNEES        #####
->>>>>>> 4c990fda40d98080c30a4e6d0843894025e60fe1
     #####                                        #####
     ##################################################
     ##################################################
 
     if args.predcluster or args.prediction:
         if type_exec == "f":
+            save_tree(X_base, Y_base)
             test_predict(X, Y)
 
 def make_Kmeans(k, X_raw, X_pca, Y):
@@ -232,11 +212,6 @@ def make_Kmeans(k, X_raw, X_pca, Y):
         print(col," --------------------------")
         res = X_raw.groupby(["labels",col]).size()
         print(res)
-<<<<<<< HEAD
-        #print ggplot(res, aes(x=col, weight = res.iloc[:,-1], fill = "labels")) + geom_bar() + theme_bw()
-        plt.hist(res, bins, label = ["x", "y"])
-        plt.legend(loc = "upper right")
-=======
         print("-------------------")
         res = res.to_frame()
         print("-------------------")
@@ -257,7 +232,6 @@ def make_Kmeans(k, X_raw, X_pca, Y):
         plt.figure(figsize=(10,6))
         print(type(res))
         sn.barplot(x=col, hue="labels", y=res.iloc[:,-1], data=res)
->>>>>>> 4c990fda40d98080c30a4e6d0843894025e60fe1
         plt.show()
 
 # Function called to plot the elbow graph for choosing the kmeans number of cluster.
@@ -357,6 +331,17 @@ def save_acp_graph(acp, coord, data, Y, cp1, cp2, n, p, corvar, fixed = False):
     axes.set_ylabel("CP " + str(cp2 + 1))
     plt.savefig("fig/" + type_exec + "/acp_instances_plan_" + str(cp1) + "-" + str(cp2))
     plt.close(fig)
+    print("Done")
+
+def save_tree(X, Y):
+    print("Saving Decision Tree...")
+    tree_clf = tree.DecisionTreeClassifier(random_state = 0)
+    tree_clf = tree_clf.fit(X, Y)
+    res = tree.export_graphviz(tree_clf, class_names = ["Non dem", "Dem"], filled = True, rounded = True, out_file = None, feature_names = X.columns, max_depth = 3)
+    img = graphviz.Source(res)
+    img.format = "png"
+    img.render("./fig/" + type_exec + "/decision_tree", view = False)
+    os.remove("./fig/" + type_exec + "/decision_tree")
     print("Done")
 
 # Sauvegarde le cercle des corrélations
