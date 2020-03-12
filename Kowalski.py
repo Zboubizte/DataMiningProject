@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 import numpy as np
+import os
 import seaborn as sn
 import matplotlib.pyplot as plt
 from sklearn import tree
@@ -114,17 +115,19 @@ def main():
     ##################################################
     ##################################################
 
-    # Ligne 1: on ne discretise pas; Ligne 2: on discretise
-    #df["situation_fam"] = df["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
-    df = discretization(df, ["categorie", "situation_fam", "sexe"]) 
-    
+   
     # On prend autant de démissionnaires que de non démissionnaires
     mini = min([df[df["demissionnaire"] == True].count().iloc[0], df[df["demissionnaire"] == False].count().iloc[0]])
     df = df.groupby(["demissionnaire"]).apply(lambda grp: grp.sample(n = mini)).reset_index(level = [0, 1], drop = True)
 
+    # Ligne 1: on ne discretise pas; Ligne 2: on discretise
+    #df["situation_fam"] = df["situation_fam"].apply(lambda x: ord(x.lower()) - 96).astype(int)
+    X_base, Y_base = get_XY(df, "d")
+    df = discretization(df, ["categorie", "situation_fam", "sexe"]) 
+    
     # Création des données X et Y
     X, Y = get_XY(df, "d")
-
+    
     # Scale des données
     scaler = StandardScaler()
     X_cols = X.columns
@@ -162,7 +165,7 @@ def main():
     # Clustering hiérarchique des données
     # make_dendrogram(X)
     make_elbow(X);
-    make_Kmeans(5, X, coord.iloc[:, :6], Y);
+    make_Kmeans(5, X, coord.iloc[:, :6], Y, X_base);
 
     ##################################################
     ##################################################
@@ -174,7 +177,10 @@ def main():
 
     #test_predict(X, Y)
 
-def make_Kmeans(k, X_raw, X_pca, Y):
+def make_Kmeans(k, X_raw, X_pca, Y, X_base):
+    if not os.path.exists('fig/kmeans'):
+		os.makedirs('fig/kmeans')
+
     model = KMeans(n_clusters = k, n_init = 20)
     #Compute cluster centers and predict cluster indices
     X_clustered = model.fit_predict(X_pca)
@@ -183,40 +189,21 @@ def make_Kmeans(k, X_raw, X_pca, Y):
     plt.figure(figsize = (7,7))
     labels = model.labels_
     plt.scatter(X_pca.iloc[:, 0],X_pca.iloc[:, 1], c = labels.astype(np.float), alpha = 0.5) 
-    plt.savefig("fig/Kmeans_" + str(k) + "_pca")
-    df_res = pd.DataFrame(Y.values, columns = ["realData"])
-    df_res["labels"] = labels
+    plt.savefig("fig/kmeans/Kmeans_" + str(k) + "_pca")
+
     model.fit(X_raw)
     X_raw = pd.DataFrame(scaler.inverse_transform(X_raw), columns = X_raw.columns)
     X_raw["labels"] = labels
+    X_base["labels"] = labels
     bins = np.linspace(-10, 10, 30)
     plt.clf()
-    for col in X_raw.columns:
-        # ------------------ A FAIRE ------------------------
-        print(col," --------------------------")
-        res = X_raw.groupby(["labels",col]).size()
-        print(res)
-        print("-------------------")
-        res = res.to_frame()
-        print("-------------------")
-        print(res)
-        print("-------------------")
-        res['values'] = res.values
-        print(res)
-        
-        print("----------RESSSSS---------")
-        print(res.loc[["values"]])
-        print(lelele)
-        # print ggplot(res, aes(x=col, weight = res.iloc[:,-1], fill = "labels")) + geom_bar() + theme_bw()
-        # plt.hist(res, bins, label = ["x", "y"])
-        # plt.legend(loc = "upper right")
-        # plt.show()
-        # plt.clf()
-
-        plt.figure(figsize=(10,6))
-        print(type(res))
-        sn.barplot(x=col, hue="labels", y=res.iloc[:,-1], data=res)
-        plt.show()
+    # Plot the number of entity for each column and grouped by labels
+    for col in X_base.columns:
+        if col != "labels":
+            res = X_base.groupby(["labels",col]).size().reset_index(name='counts')
+            plt.figure(figsize=(10,6))
+            sn.barplot(x=col, hue="labels", y="counts", data=res)
+            plt.savefig("fig/kmeans/"+ col)
 
 # Function called to plot the elbow graph for choosing the kmeans number of cluster.
 def make_elbow(X):
@@ -225,7 +212,6 @@ def make_elbow(X):
     for k in lst_k:
         kmeanModel = KMeans(n_clusters = k).fit(X)
         kmeanModel.fit(X)
-        # lst_rsq.append(np.average(np.min(cdist(X, kmeanModel.cluster_centers_, "euclidean"), axis=1)) / X.shape[0])
         lst_rsq.append(r_square(X.values, kmeanModel.cluster_centers_,kmeanModel.labels_,k))
 
     fig = plt.figure()
